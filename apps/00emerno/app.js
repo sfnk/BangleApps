@@ -97,4 +97,8 @@ onInit(); // set up our new services
 g.clear();
 g.setFont("Vector", 20); // vector font, 80px 
 g.drawString("ready", 5, 110);
-NRF.disconnect();
+//NRF.disconnect();
+NRF.wake();
+NRF.setAdvertising({
+    bluetoothServiceUUID : undefined // Advertise service UUID 0x180D (HRM)
+});
