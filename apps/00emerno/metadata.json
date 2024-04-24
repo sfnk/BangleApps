@@ -4,7 +4,6 @@
   "version": "0.11",
   "description": "An app observing vital signs",
   "icon": "app.png",
-  "tags": "app",
   "supports": ["BANGLEJS2"],
   "storage": [
     {"name":"00emerno.app.js","url":"app.js"},
