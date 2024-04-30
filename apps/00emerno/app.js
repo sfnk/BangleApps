@@ -110,6 +110,7 @@ function setDrawClock(){
             draw();
         }, 60000 - (Date.now() % 60000));
     };
+    draw();
 }
 
 function setDrawAlert(){
@@ -130,13 +131,13 @@ function setDrawAlert(){
             draw();
         }, 1000 - (Date.now() % 1000));
     };
+    draw();
 }
 
 function onAlertCancelled(){
     console.log("onAlertCancelled");
     isAlerting = false;
     setDrawClock();
-    draw();
 }
 
 function onAlertNotCancelled(data) {
@@ -153,7 +154,6 @@ function onAlertNotCancelled(data) {
         });
     }
     setDrawClock();
-    draw();
 }
 
 function resetTimers(){
@@ -187,10 +187,9 @@ function onAlert(data){
     console.log("onAlert");
     isAlerting = true;
     setDrawAlert();
-    draw();
     alertCancelInterval = setInterval(alert, 300);
     clearAlertCancelInterval = setTimeout(clearInterval, 10000, alertCancelInterval);
-    clearAlertNotCancelled = setTimeout(onAlertNotCancelled, 11000, data);
+    clearAlertNotCancelled = setTimeout(onAlertNotCancelled, 10000, data);
 }
 
 var hrmCountPoll = 0;
@@ -255,7 +254,7 @@ function onBondErased(){
 function uiLog(text){
     lastUILog = text;
     draw();
-};
+}
 
 function onInit() {
     NRF.on('connect', function () { connected = true;
@@ -282,7 +281,7 @@ function onInit() {
     NRF.setServices({
         "123f0001-40c3-4cf3-9797-9a8703e32795": {
             "123f0002-40c3-4cf3-9797-9a8703e32795": {
-                notify,
+                notify: true,
                 description: "accel data",
                 value : new Float32Array([0, 0]).buffer,
             },
