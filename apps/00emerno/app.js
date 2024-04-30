@@ -9,6 +9,8 @@ Bangle.setOptions({
     hrmSportMode: -1
 });
 
+NRF.setTxPower(8);
+
 var bootTimer = 0;
 setInterval(function() {
     if (BTN.read())
@@ -24,8 +26,8 @@ Graphics.prototype.setFontAnton = function(scale) {
 };
 
 const BANGLEJS2 = process.env.HWVERSION==2;
-const storage = require('Storage');
-let settings;
+//const storage = require('Storage');
+//let settings;
 
 function updateSettings() {
     //storage.erase('setting.json'); // - not needed, just causes extra writes if settings were the same
