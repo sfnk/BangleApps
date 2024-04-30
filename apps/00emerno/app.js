@@ -344,7 +344,7 @@ function initGraphics(){
     });
     Bangle.loadWidgets();
     setTimeout(Bangle.drawWidgets,0);
-};
+}
 
 function remove (){
     if (drawTimeout) clearTimeout(drawTimeout);
