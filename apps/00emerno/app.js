@@ -282,7 +282,7 @@ setWatch(onBtnReleased,BTN1,{repeat:true, edge:'falling'});
 
 function initGraphics(){
     Bangle.setUI({
-        mode : "custom",
+        mode : "clock",
         btn: onButtonPressed
     });
     Bangle.loadWidgets();
