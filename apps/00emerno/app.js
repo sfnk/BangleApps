@@ -90,13 +90,70 @@ function onAlertNotCancelled(data) {
         NRF.updateServices({
             "123f0001-40c3-4cf3-9797-9a8703e32795": {
                 "123f0002-40c3-4cf3-9797-9a8703e32795": {
-                    value: new Float32Array([data.diff, data.mag]).buffer,
+                    value: new Float32Array([Date.now(), data.diff, data.mag]).buffer,
                     notify: true
                 }
             }
         });
     }
     setDrawClock();
+}
+
+function stepCount(){
+    if (connected) {
+        NRF.updateServices({
+            "123f0001-40c3-4cf3-9797-9a8703e32795": {
+                "123f0004-40c3-4cf3-9797-9a8703e32795": {
+                    value : new Float32Array([Date.now(), Bangle.getStepCount()]).buffer,
+                    notify: true
+                }
+            }
+        });
+    }
+}
+
+function batteryPercentage(){
+    if (connected) {
+        NRF.updateServices({
+            "123f0001-40c3-4cf3-9797-9a8703e32795": {
+                "123f0005-40c3-4cf3-9797-9a8703e32795": {
+                    value : new Float32Array([Date.now(), E.getBattery()]).buffer,
+                    notify: true
+                }
+            }
+        });
+    }
+}
+
+function onHRM(hrm){
+    hrmCountPoll = hrmCountPoll + 1;
+    //console.log("hrm: " + hrm.bpm)
+    if (connected && hrmCountPoll > 100){
+        hrmCountPoll = 0;
+        NRF.updateServices({
+            "123f0001-40c3-4cf3-9797-9a8703e32795": {
+                "123f0003-40c3-4cf3-9797-9a8703e32795": {
+                    value : new Float32Array([Date.now(), Math.round(hrm.bpm), hrm.confidence]).buffer,
+                    notify: true
+                }
+            }
+        });
+    }
+}
+
+function onLongPress() {
+    console.log("onLongPress");
+    Bangle.buzz(1000, 1);
+    if (connected) {
+        NRF.updateServices({
+            "123f0001-40c3-4cf3-9797-9a8703e32795": {
+                "123f0006-40c3-4cf3-9797-9a8703e32795": {
+                    value : new Float32Array([Date.now(), 1]).buffer,
+                    notify: true
+                }
+            }
+        });
+    }
 }
 
 function resetTimers(){
@@ -138,21 +195,6 @@ function onAlert(data){
 var hrmCountPoll = 0;
 var batteryInterval, connected = false;
 
-function onHRM(hrm){
-    hrmCountPoll = hrmCountPoll + 1;
-    //console.log("hrm: " + hrm.bpm)
-    if (connected && hrmCountPoll > 100){
-        hrmCountPoll = 0;
-        NRF.updateServices({
-            "123f0001-40c3-4cf3-9797-9a8703e32795": {
-                "123f0003-40c3-4cf3-9797-9a8703e32795": {
-                    value : new Int32Array([Math.round(hrm.bpm), hrm.confidence]).buffer,
-                    notify: true
-                }
-            }
-        });
-    }
-}
 
 function onAccel(d) {
     //nsole.log("diff: " + d.diff + " mag: " + d.mag);
@@ -161,32 +203,6 @@ function onAccel(d) {
             console.log("ON ALERT: " + d.mag)
             setTimeout(onAlert, 0, d);
         }
-    }
-}
-
-function stepCount(){
-    if (connected) {
-        NRF.updateServices({
-            "123f0001-40c3-4cf3-9797-9a8703e32795": {
-                "123f0004-40c3-4cf3-9797-9a8703e32795": {
-                    value : new Int32Array([Bangle.getStepCount()]).buffer,
-                    notify: true
-                }
-            }
-        });
-    }
-}
-
-function batteryPercentage(){
-    if (connected) {
-        NRF.updateServices({
-            "123f0001-40c3-4cf3-9797-9a8703e32795": {
-                "123f0005-40c3-4cf3-9797-9a8703e32795": {
-                    value : new Int32Array([E.getBattery()]).buffer,
-                    notify: true
-                }
-            }
-        });
     }
 }
 
@@ -226,27 +242,27 @@ function onInit() {
             "123f0002-40c3-4cf3-9797-9a8703e32795": {
                 notify: true,
                 description: "accel data",
-                value : new Float32Array([0, 0]).buffer,
+                value : new Float32Array([0 ,0, 0]).buffer,
             },
             "123f0003-40c3-4cf3-9797-9a8703e32795": {
                 notify: true,
                 description: "heart rate",
-                value : new Int32Array([0,0]).buffer,
+                value : new Float32Array([0, 0, 0]).buffer,
             },
             "123f0004-40c3-4cf3-9797-9a8703e32795": {
                 notify: true,
                 description: "steps count",
-                value : new Int32Array([0]).buffer
+                value : new Float32Array([0, 0]).buffer
             },
             "123f0005-40c3-4cf3-9797-9a8703e32795": {
                 notify: true,
                 description: "battery percentage",
-                value : new Int32Array([0]).buffer
+                value : new Float32Array([0, 0]).buffer
             },
             "123f0006-40c3-4cf3-9797-9a8703e32795": {
                 notify: true,
                 description: "notification for emergency button",
-                value : new Float32Array([0]).buffer
+                value : new Float32Array([0, 0]).buffer
             }
         }
     });
@@ -259,10 +275,6 @@ function onInit() {
 }
 
 let btnReleaseTimeout;
-function onLongPress() {
-    console.log("onLongPress");
-    Bangle.buzz(1000, 1);
-}
 
 function onBtnReleased(e){
     console.log("onBtnReleased");
