@@ -1,6 +1,6 @@
-//Bangle.loadWidgets();
-//Bangle.drawWidgets();
-E.setBootCode("");
+Bangle.loadWidgets();
+Bangle.drawWidgets();
+//E.setBootCode("");
 console.log(Modules.getCached());
 Bangle.removeAllListeners();
 NRF.removeAllListeners();
