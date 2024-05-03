@@ -293,10 +293,10 @@ setWatch(onBtnPressed,BTN1,{repeat:true, edge:'rising'});
 setWatch(onBtnReleased,BTN1,{repeat:true, edge:'falling'});
 
 function initGraphics(){
-    Bangle.setUI({
-        mode : "clock",
-        btn: onButtonPressed
-    });
+    //Bangle.setUI({
+    //    mode : "clock",
+    //    btn: onButtonPressed
+    //});
     Bangle.loadWidgets();
     setTimeout(Bangle.drawWidgets,0);
 }
