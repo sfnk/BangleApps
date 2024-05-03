@@ -278,7 +278,8 @@ let btnReleaseTimeout;
 
 function onBtnReleased(e){
     console.log("onBtnReleased");
-    clearTimeout(btnReleaseTimeout);
+    if(btnReleaseTimeout)
+      clearTimeout(btnReleaseTimeout);
 }
 
 function onBtnPressed(e) {
