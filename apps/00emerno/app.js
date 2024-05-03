@@ -1,5 +1,6 @@
 //Bangle.loadWidgets();
 //Bangle.drawWidgets();
+require('Storage').read('bootupdate.js');
 
 Bangle.setOptions({
     lockTimeout: 0,
