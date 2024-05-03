@@ -25,5 +25,7 @@ if (!_clkApp) {
 }
 delete s;
 if (!_clkApp) _clkApp=`E.showMessage("No Clock Found");setWatch(()=>{Bangle.showLauncher();}, global.BTN2||BTN, {repeat:false,edge:"falling"});`;
+console.log("pre eval CLK APP")
 eval(_clkApp);
+console.log("post eval CLK APP")
 delete _clkApp;
