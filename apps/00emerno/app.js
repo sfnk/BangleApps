@@ -329,6 +329,7 @@ let alertCancelInterval, clearAlertCancelInterval, clearAlertNotCancelled;
         initGraphics();
     }
 }
+
 try {
     eval("dec");
 } catch (e) {
