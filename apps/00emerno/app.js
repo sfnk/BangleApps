@@ -1,5 +1,10 @@
-Bangle.loadWidgets();
-Bangle.drawWidgets();
+//if(!dec == undefined)
+  //return;
+
+//function dec(){}
+
+//Bangle.loadWidgets();
+//Bangle.drawWidgets();
 
 Bangle.setOptions({
     lockTimeout: 0,
