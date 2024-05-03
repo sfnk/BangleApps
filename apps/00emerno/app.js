@@ -1,5 +1,10 @@
 //Bangle.loadWidgets();
 //Bangle.drawWidgets();
+Bangle.removeAllListeners();
+NRF.removeAllListeners();
+clearTimeout();
+clearInterval();
+
 require('Storage').read('bootupdate.js');
 
 Bangle.setOptions({
