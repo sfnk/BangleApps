@@ -304,7 +304,6 @@ function initGraphics(){
 }
 
 function startApp(){
-    setDrawClock();
     if(appStarted){
         return;
     }
@@ -328,7 +327,7 @@ function startApp(){
     }, 2000);
 
     Bangle.setLocked(false);
-
+    setDrawClock();
     onAppStart(); // set up our new services
     initGraphics();
 }
