@@ -1,8 +1,3 @@
-//if(!dec == undefined)
-  //return;
-
-//function dec(){}
-
 //Bangle.loadWidgets();
 //Bangle.drawWidgets();
 
@@ -307,6 +302,38 @@ function initGraphics(){
     setTimeout(Bangle.drawWidgets,0);
 }
 
-setDrawClock();
-onInit(); // set up our new services
-initGraphics();
+function startApp(){
+  Bangle.setOptions({
+    lockTimeout: 0,
+    backlightTimeout: 10000,
+    btnLoadTimeout: 0,
+    hrmSportMode: -1
+  });
+
+  NRF.setTxPower(8);
+
+  var bootTimer = 0;
+  setInterval(function() {
+      if (BTN.read())
+          bootTimer++;
+      else bootTimer=0;
+
+      if (bootTimer<10) E.kickWatchdog();
+  }, 2000);
+
+  Bangle.setLocked(false);
+
+  setDrawClock();
+  onInit(); // set up our new services
+  initGraphics();
+}
+
+try {
+  eval("dec");
+} catch (e) {
+  startApp();
+}
+
+function dec(){
+  return true;
+}
