@@ -30,9 +30,128 @@ let drawTimeout;
 let draw;
 let isAlerting = false;
 let alertCancelInterval, clearAlertCancelInterval, clearAlertNotCancelled;
+let last_alert;
+let hrmCountPoll = 0;
+var connected = false;
+
+let btnReleaseTimeout;
+
+var accel_file = "accel.csv";
+var accel_cancelled_file = "accel_cancelled.csv";
+var heart_rate_file = "heartrate.csv";
+var emergency_file = "emergency.csv";
+var battery_file = "battery.csv";
+var steps_file = "steps.csv";
+
+function getAccelCSV(data){
+    return [Date.now(), data.diff, data.mag];
+}
+function getAccelCancelledCSV(data){
+    return getAccelCSV(data)
+}
+function getBatteryCSV(data){
+    return [Date.now(), data]
+}
+function getStepsCSV(data){
+    return [Date.now(), data]
+}
+function getHeartRateCSV(data){
+    return [Date.now(), data.bpm, data.confidence];
+}
+function getEmergencyCSV(data){
+    return [Date.now(), data];
+}
+
+function writeToCSV(fileName, data, rewrite){
+    //console.log("writing to file: " + fileName);
+    if(rewrite) {
+        var deleteFile = require("Storage").open(fileName, "r");
+        if(deleteFile != null){
+            deleteFile.erase();
+            //console.log("file deleted: " + fileName);
+        }
+    }
+    var file = require("Storage").open(fileName, "a");
+    file.write(data.join(";")+"\n");
+}
+
+function sendAccel(data){
+    NRF.updateServices({
+        "123f0001-40c3-4cf3-9797-9a8703e32795": {
+            "123f0002-40c3-4cf3-9797-9a8703e32795": {
+                value: new Float32Array(data).buffer,
+                notify: true
+            }
+        }
+    });
+}
+function sendAccelCancelled(data){
+    NRF.updateServices({
+        "123f0001-40c3-4cf3-9797-9a8703e32795": {
+            "123f0007-40c3-4cf3-9797-9a8703e32795": {
+                value: new Float32Array(data).buffer,
+                notify: true
+            }
+        }
+    });
+}
+function sendBattery(data){
+    NRF.updateServices({
+        "123f0001-40c3-4cf3-9797-9a8703e32795": {
+            "123f0005-40c3-4cf3-9797-9a8703e32795": {
+                value : new Float32Array(data).buffer,
+                notify: true
+            }
+        }
+    });
+}
+function sendHeartRate(data){
+    NRF.updateServices({
+        "123f0001-40c3-4cf3-9797-9a8703e32795": {
+            "123f0003-40c3-4cf3-9797-9a8703e32795": {
+                value : new Float32Array(data).buffer,
+                notify: true
+            }
+        }
+    });
+}
+function sendEmergency(data){
+    NRF.updateServices({
+        "123f0001-40c3-4cf3-9797-9a8703e32795": {
+            "123f0006-40c3-4cf3-9797-9a8703e32795": {
+                value : new Float32Array(data).buffer,
+                notify: true
+            }
+        }
+    });
+}
+function sendSteps(data){
+    NRF.updateServices({
+        "123f0001-40c3-4cf3-9797-9a8703e32795": {
+            "123f0004-40c3-4cf3-9797-9a8703e32795": {
+                value : new Float32Array(data).buffer,
+                notify: true
+            }
+        }
+    });
+}
+
+function checkResend(fileName, sendFunction){
+    //console.log("checkResend: " + fileName);
+    var file = require("Storage").open(fileName, "r");
+    var line = file.readLine();
+    while (line!==undefined) {
+        //console.log("line: " + line);
+        sendFunction(line.split(";"));
+        //console.log("sent.");
+        line = file.readLine();
+    }
+    file.erase();
+    //console.log("file erased: " + fileName);
+}
 
 function setDrawClock(){
-    console.log("setDrawClock");
+    //console.log("setDrawClock");
     draw = function() {
         var x = g.getWidth() / 2;
         var y = g.getHeight() / 2;
@@ -58,7 +177,7 @@ function setDrawClock(){
 }
 
 function setDrawAlert(){
-    console.log("setDrawAlert");
+    //console.log("setDrawAlert");
     draw = function() {
         var x = g.getWidth() / 2;
         var y = g.getHeight() / 2;
@@ -79,86 +198,73 @@ function setDrawAlert(){
 }
 
 function onAlertCancelled(){
-    console.log("onAlertCancelled");
+    //console.log("onAlertCancelled");
     isAlerting = false;
     setDrawClock();
+    if(connected) {
+        sendAccelCancelled([Date.now(), last_alert.diff, last_alert.mag])
+    } else {
+        writeToCSV(accel_cancelled_file, getAccelCancelledCSV(last_alert));
+    }
+    last_alert = null;
 }
 
 function onAlertNotCancelled(data) {
-    console.log("onAlertNotCancelled");
+    //console.log("onAlertNotCancelled");
     resetTimers();
     if (connected) {
-        NRF.updateServices({
-            "123f0001-40c3-4cf3-9797-9a8703e32795": {
-                "123f0002-40c3-4cf3-9797-9a8703e32795": {
-                    value: new Float32Array([Date.now(), data.diff, data.mag]).buffer,
-                    notify: true
-                }
-            }
-        });
+        sendAccel([Date.now(), data.diff, data.mag])
+    } else {
+        writeToCSV(accel_file, getAccelCSV(data))
     }
+    last_alert = null;
     setDrawClock();
 }
 
 function stepCount(){
     if (connected) {
-        NRF.updateServices({
-            "123f0001-40c3-4cf3-9797-9a8703e32795": {
-                "123f0004-40c3-4cf3-9797-9a8703e32795": {
-                    value : new Float32Array([Date.now(), Bangle.getStepCount()]).buffer,
-                    notify: true
-                }
-            }
-        });
+        sendSteps([Date.now(), Bangle.getStepCount()]);
+    } else {
+        writeToCSV(steps_file, getStepsCSV(Bangle.getStepCount()), true)
     }
 }
 
 function batteryPercentage(){
+    //console.log("batteryPercentage: " + E.getBattery());
     if (connected) {
-        NRF.updateServices({
-            "123f0001-40c3-4cf3-9797-9a8703e32795": {
-                "123f0005-40c3-4cf3-9797-9a8703e32795": {
-                    value : new Float32Array([Date.now(), E.getBattery()]).buffer,
-                    notify: true
-                }
-            }
-        });
+        sendBattery([Date.now(), E.getBattery()]);
+    } else {
+        writeToCSV(battery_file, getBatteryCSV(E.getBattery()), true);
     }
 }
 
 function onHRM(hrm){
-    hrmCountPoll = hrmCountPoll + 1;
+    //hrmCountPoll = hrmCountPoll + 1;
     //console.log("hrm: " + hrm.bpm)
-    if (connected && hrmCountPoll > 100){
-        hrmCountPoll = 0;
-        NRF.updateServices({
-            "123f0001-40c3-4cf3-9797-9a8703e32795": {
-                "123f0003-40c3-4cf3-9797-9a8703e32795": {
-                    value : new Float32Array([Date.now(), Math.round(hrm.bpm), hrm.confidence]).buffer,
-                    notify: true
-                }
-            }
-        });
+    //if(hrmCountPoll < 100) {
+    //    console.log("hrm count: " + hrmCountPoll);
+    //    return;
+    //}
+    if (connected){
+        sendHeartRate([Date.now(), hrm.bpm, hrm.confidence]);
+    } else {
+        writeToCSV(heart_rate_file, getHeartRateCSV(hrm))
     }
+    //hrmCountPoll = 0;
 }
 
 function onLongPress() {
-    console.log("onLongPress");
+    //console.log("onLongPress");
     Bangle.buzz(1000, 1);
     if (connected) {
-        NRF.updateServices({
-            "123f0001-40c3-4cf3-9797-9a8703e32795": {
-                "123f0006-40c3-4cf3-9797-9a8703e32795": {
-                    value : new Float32Array([Date.now(), 1]).buffer,
-                    notify: true
-                }
-            }
-        });
+        sendEmergency([Date.now(), 1]);
+    } else {
+        writeToCSV(emergency_file, getEmergencyCSV(1))
     }
 }
 
 function resetTimers(){
-    console.log("resetTimers");
+    //console.log("resetTimers");
     if(alertCancelInterval)
         clearInterval(alertCancelInterval);
     if(clearAlertCancelInterval)
@@ -173,7 +279,7 @@ function resetTimers(){
 }
 
 function onButtonPressed(n){
-    console.log("onButtonPressed");
+    //console.log("onButtonPressed");
     if(isAlerting) {
         resetTimers();
         onAlertCancelled();
@@ -185,23 +291,20 @@ function alert(){
 }
 
 function onAlert(data){
-    console.log("onAlert");
+    //console.log("onAlert");
     isAlerting = true;
     setDrawAlert();
+    last_alert = data;
     alertCancelInterval = setInterval(alert, 300);
     clearAlertCancelInterval = setTimeout(clearInterval, 10000, alertCancelInterval);
     clearAlertNotCancelled = setTimeout(onAlertNotCancelled, 10000, data);
 }
 
-var hrmCountPoll = 0;
-var batteryInterval, connected = false;
-
-
 function onAccel(d) {
     //nsole.log("diff: " + d.diff + " mag: " + d.mag);
     if(!isAlerting){
         if(d.diff > 1.0 && d.mag > 1.8) {
-            console.log("ON ALERT: " + d.mag)
+            //console.log("ON ALERT: " + d.mag)
             setTimeout(onAlert, 0, d);
         }
     }
@@ -216,11 +319,24 @@ function uiLog(text){
     draw();
 }
 
+function onConnectResend(){
+    //console.log("onConnectResend");
+    checkResend(battery_file, sendBattery);
+    checkResend(accel_file, sendAccel);
+    checkResend(accel_cancelled_file, sendAccelCancelled);
+    checkResend(steps_file, sendSteps);
+    checkResend(emergency_file, sendEmergency);
+    checkResend(heart_rate_file, sendHeartRate);
+}
+
 function onAppStart() {
-    NRF.on('connect', function () { connected = true;
+    NRF.on('connect', function () {
+        connected = true;
+        setTimeout(onConnectResend, 5000);
         uiLog("connected");
     });
-    NRF.on('disconnect', function () { connected = false;
+    NRF.on('disconnect', function () {
+        connected = false;
         uiLog("disconnected");
         NRF.eraseBonds(onBondErased);
     });
@@ -264,27 +380,31 @@ function onAppStart() {
                 notify: true,
                 description: "notification for emergency button",
                 value : new Float32Array([0, 0]).buffer
-            }
+            },
+            "123f0007-40c3-4cf3-9797-9a8703e32795": {
+                notify: true,
+                description: "accel canceled data",
+                value : new Float32Array([0 ,0, 0]).buffer,
+            },
         }
     });
+
     uiLog("Waiting..","Bluetooth Connection");
-    setInterval(stepCount, 30000);
-    setInterval(batteryPercentage, 5000);
+    setInterval(stepCount, 300000);
+    setInterval(batteryPercentage, 3000);
     Bangle.on('accel', onAccel);
-    Bangle.on('HRM-raw', onHRM);
+    Bangle.on('HRM', onHRM);
     Bangle.setHRMPower(1, "emerno");
 }
 
-let btnReleaseTimeout;
-
 function onBtnReleased(e){
-    console.log("onBtnReleased");
+    //console.log("onBtnReleased");
     if(btnReleaseTimeout)
         clearTimeout(btnReleaseTimeout);
 }
 
 function onBtnPressed(e) {
-    console.log("onBtnPressed");
+    //console.log("onBtnPressed");
     onButtonPressed();
     if(BTN1.read()){
         btnReleaseTimeout = setTimeout(onLongPress, 3000);
@@ -315,6 +435,7 @@ function startApp(){
         hrmSportMode: -1
     });
 
+    E.setClock(80);
     NRF.setTxPower(8);
 
     var bootTimer = 0;
