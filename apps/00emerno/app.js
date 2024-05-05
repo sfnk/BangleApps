@@ -36,12 +36,19 @@ var connected = false;
 
 let btnReleaseTimeout;
 
-var accel_file = "accel.csv";
-var accel_cancelled_file = "accel_cancelled.csv";
-var heart_rate_file = "heartrate.csv";
-var emergency_file = "emergency.csv";
-var battery_file = "battery.csv";
-var steps_file = "steps.csv";
+var buffer_size = 5;
+var accel_buffer = [];
+var accel_cancelled_buffer =[];
+var heart_rate_buffer = [];
+var emergency_buffer = [];
+var battery_buffer = [];
+var steps_buffer = [];
+
+function addElement(array, data) {
+    if (array.length == buffer_size)
+        array.shift();
+    array.push(data);
+}
 
 function getAccelCSV(data){
     return [Date.now(), data.diff, data.mag];
@@ -62,17 +69,8 @@ function getEmergencyCSV(data){
     return [Date.now(), data];
 }
 
-function writeToCSV(fileName, data, rewrite){
-    //console.log("writing to file: " + fileName);
-    if(rewrite) {
-        var deleteFile = require("Storage").open(fileName, "r");
-        if(deleteFile != null){
-            deleteFile.erase();
-            //console.log("file deleted: " + fileName);
-        }
-    }
-    var file = require("Storage").open(fileName, "a");
-    file.write(data.join(";")+"\n");
+function writeToBuffer(array, data){
+    addElement(array, data);
 }
 
 function sendAccel(data){
@@ -136,18 +134,16 @@ function sendSteps(data){
     });
 }
 
-function checkResend(fileName, sendFunction){
-    //console.log("checkResend: " + fileName);
-    var file = require("Storage").open(fileName, "r");
-    var line = file.readLine();
-    while (line!==undefined) {
-        //console.log("line: " + line);
-        sendFunction(line.split(";"));
-        //console.log("sent.");
-        line = file.readLine();
+function checkResend(array, sendFunction){
+    console.log("checkResend len: " + array.length);
+    for(let i=0; i<array.length; i++){
+        console.log("for array")
+        sendFunction(array[i]);
     }
-    file.erase();
-    //console.log("file erased: " + fileName);
+    while(array.length > 0){
+        console.log("pop")
+        array.pop();
+    }
 }
 
 function setDrawClock(){
@@ -204,7 +200,7 @@ function onAlertCancelled(){
     if(connected) {
         sendAccelCancelled([Date.now(), last_alert.diff, last_alert.mag])
     } else {
-        writeToCSV(accel_cancelled_file, getAccelCancelledCSV(last_alert));
+        writeToBuffer(accel_cancelled_buffer, getAccelCancelledCSV(last_alert));
     }
     last_alert = null;
 }
@@ -215,7 +211,7 @@ function onAlertNotCancelled(data) {
     if (connected) {
         sendAccel([Date.now(), data.diff, data.mag])
     } else {
-        writeToCSV(accel_file, getAccelCSV(data))
+        writeToBuffer(accel_buffer, getAccelCSV(data))
     }
     last_alert = null;
     setDrawClock();
@@ -225,7 +221,7 @@ function stepCount(){
     if (connected) {
         sendSteps([Date.now(), Bangle.getStepCount()]);
     } else {
-        writeToCSV(steps_file, getStepsCSV(Bangle.getStepCount()), true)
+        writeToBuffer(steps_buffer, getStepsCSV(Bangle.getStepCount()), true)
     }
 }
 
@@ -234,7 +230,7 @@ function batteryPercentage(){
     if (connected) {
         sendBattery([Date.now(), E.getBattery()]);
     } else {
-        writeToCSV(battery_file, getBatteryCSV(E.getBattery()), true);
+        writeToBuffer(battery_buffer, getBatteryCSV(E.getBattery()), true);
     }
 }
 
@@ -248,7 +244,7 @@ function onHRM(hrm){
     if (connected){
         sendHeartRate([Date.now(), hrm.bpm, hrm.confidence]);
     } else {
-        writeToCSV(heart_rate_file, getHeartRateCSV(hrm))
+        writeToBuffer(heart_rate_buffer, getHeartRateCSV(hrm))
     }
     //hrmCountPoll = 0;
 }
@@ -259,7 +255,7 @@ function onLongPress() {
     if (connected) {
         sendEmergency([Date.now(), 1]);
     } else {
-        writeToCSV(emergency_file, getEmergencyCSV(1))
+        writeToBuffer(emergency_buffer, getEmergencyCSV(1))
     }
 }
 
@@ -321,13 +317,15 @@ function uiLog(text){
 
 function onConnectResend(){
     if(connected) {
+        console.log("onConnectResend")
         try {
-            checkResend(battery_file, sendBattery);
-            checkResend(accel_file, sendAccel);
-            checkResend(accel_cancelled_file, sendAccelCancelled);
-            checkResend(steps_file, sendSteps);
-            checkResend(emergency_file, sendEmergency);
-            checkResend(heart_rate_file, sendHeartRate);
+            checkResend(battery_buffer, sendBattery);
+            checkResend(accel_buffer, sendAccel);
+            checkResend(accel_cancelled_buffer, sendAccelCancelled);
+            checkResend(steps_buffer, sendSteps);
+            checkResend(emergency_buffer, sendEmergency);
+            checkResend(heart_rate_buffer, sendHeartRate);
+            console.log("onConnectResend success")
         } catch (e) {
             console.log("error onConnectResend")
         }
@@ -446,7 +444,7 @@ function startApp(){
     });
 
     //E.setClock(80);
-    NRF.setTxPower(8);
+    //NRF.setTxPower(8);
 
     var bootTimer = 0;
     setInterval(function() {
