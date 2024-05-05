@@ -29,7 +29,7 @@ let lastUILog = "";
 let drawTimeout;
 let draw;
 let isAlerting = false;
-let alertCancelInterval, clearAlertCancelInterval, clearAlertNotCancelled;
+let checkResendInterval, alertCancelInterval, clearAlertCancelInterval, clearAlertNotCancelled;
 let last_alert;
 let hrmCountPoll = 0;
 var connected = false;
@@ -320,23 +320,33 @@ function uiLog(text){
 }
 
 function onConnectResend(){
-    //console.log("onConnectResend");
-    checkResend(battery_file, sendBattery);
-    checkResend(accel_file, sendAccel);
-    checkResend(accel_cancelled_file, sendAccelCancelled);
-    checkResend(steps_file, sendSteps);
-    checkResend(emergency_file, sendEmergency);
-    checkResend(heart_rate_file, sendHeartRate);
+    if(connected) {
+        try {
+            checkResend(battery_file, sendBattery);
+            checkResend(accel_file, sendAccel);
+            checkResend(accel_cancelled_file, sendAccelCancelled);
+            checkResend(steps_file, sendSteps);
+            checkResend(emergency_file, sendEmergency);
+            checkResend(heart_rate_file, sendHeartRate);
+        } catch (e) {
+            console.log("error onConnectResend")
+        }
+    }
 }
 
 function onAppStart() {
     NRF.on('connect', function () {
         connected = true;
-        setTimeout(onConnectResend, 5000);
+        checkResendInterval = setInterval(onConnectResend, 10000);
         uiLog("connected");
     });
     NRF.on('disconnect', function () {
         connected = false;
+        try {
+            clearInterval(checkResendInterval);
+        } catch(e) {
+            console.log("couldnt cancel checkresendinterval");
+        }
         uiLog("disconnected");
         NRF.eraseBonds(onBondErased);
     });
@@ -391,7 +401,7 @@ function onAppStart() {
 
     uiLog("Waiting..","Bluetooth Connection");
     setInterval(stepCount, 300000);
-    setInterval(batteryPercentage, 3000);
+    setInterval(batteryPercentage, 300000);
     Bangle.on('accel', onAccel);
     Bangle.on('HRM', onHRM);
     Bangle.setHRMPower(1, "emerno");
@@ -407,7 +417,7 @@ function onBtnPressed(e) {
     //console.log("onBtnPressed");
     onButtonPressed();
     if(BTN1.read()){
-        btnReleaseTimeout = setTimeout(onLongPress, 3000);
+        btnReleaseTimeout = setTimeout(onLongPress, 2500);
     }
 }
 
@@ -435,7 +445,7 @@ function startApp(){
         hrmSportMode: -1
     });
 
-    E.setClock(80);
+    //E.setClock(80);
     NRF.setTxPower(8);
 
     var bootTimer = 0;
