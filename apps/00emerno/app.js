@@ -84,14 +84,14 @@ function sendAccel(data){
     });
 }
 function sendAccelCancelled(data){
-    NRF.updateServices({
-        "123f0001-40c3-4cf3-9797-9a8703e32795": {
-            "123f0007-40c3-4cf3-9797-9a8703e32795": {
-                value: new Float32Array(data).buffer,
-                notify: true
-            }
-        }
-    });
+    //NRF.updateServices({
+    //    "123f0001-40c3-4cf3-9797-9a8703e32795": {
+    //        "123f0007-40c3-4cf3-9797-9a8703e32795": {
+    //            value: new Float32Array(data).buffer,
+    //            notify: true
+    //        }
+    //    }
+    //});
 }
 function sendBattery(data){
     NRF.updateServices({
@@ -389,11 +389,11 @@ function onAppStart() {
                 description: "notification for emergency button",
                 value : new Float32Array([0, 0]).buffer
             },
-            "123f0007-40c3-4cf3-9797-9a8703e32795": {
-                notify: true,
-                description: "accel canceled data",
-                value : new Float32Array([0 ,0, 0]).buffer,
-            },
+            //"123f0007-40c3-4cf3-9797-9a8703e32795": {
+            //    notify: true,
+            //    description: "accel canceled data",
+            //    value : new Float32Array([0 ,0, 0]).buffer,
+            //},
         }
     });
 
