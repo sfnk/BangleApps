@@ -54,13 +54,13 @@ function getAccelCSV(data){
     return [Date.now(), data.diff, data.mag];
 }
 function getAccelCancelledCSV(data){
-    return getAccelCSV(data)
+    return getAccelCSV(data);
 }
 function getBatteryCSV(data){
-    return [Date.now(), data]
+    return [Date.now(), data];
 }
 function getStepsCSV(data){
-    return [Date.now(), data]
+    return [Date.now(), data];
 }
 function getHeartRateCSV(data){
     return [Date.now(), data.bpm, data.confidence];
@@ -135,13 +135,13 @@ function sendSteps(data){
 }
 
 function checkResend(array, sendFunction){
-    console.log("checkResend len: " + array.length);
+    //console.log("checkResend len: " + array.length);
     for(let i=0; i<array.length; i++){
-        console.log("for array")
+        //console.log("for array")
         sendFunction(array[i]);
     }
     while(array.length > 0){
-        console.log("pop")
+        //console.log("pop")
         array.pop();
     }
 }
@@ -198,7 +198,7 @@ function onAlertCancelled(){
     isAlerting = false;
     setDrawClock();
     if(connected) {
-        sendAccelCancelled([Date.now(), last_alert.diff, last_alert.mag])
+        sendAccelCancelled([Date.now(), last_alert.diff, last_alert.mag]);
     } else {
         writeToBuffer(accel_cancelled_buffer, getAccelCancelledCSV(last_alert));
     }
@@ -209,9 +209,9 @@ function onAlertNotCancelled(data) {
     //console.log("onAlertNotCancelled");
     resetTimers();
     if (connected) {
-        sendAccel([Date.now(), data.diff, data.mag])
+        sendAccel([Date.now(), data.diff, data.mag]);
     } else {
-        writeToBuffer(accel_buffer, getAccelCSV(data))
+        writeToBuffer(accel_buffer, getAccelCSV(data));
     }
     last_alert = null;
     setDrawClock();
@@ -221,7 +221,7 @@ function stepCount(){
     if (connected) {
         sendSteps([Date.now(), Bangle.getStepCount()]);
     } else {
-        writeToBuffer(steps_buffer, getStepsCSV(Bangle.getStepCount()), true)
+        writeToBuffer(steps_buffer, getStepsCSV(Bangle.getStepCount()), true);
     }
 }
 
@@ -244,7 +244,7 @@ function onHRM(hrm){
     if (connected){
         sendHeartRate([Date.now(), hrm.bpm, hrm.confidence]);
     } else {
-        writeToBuffer(heart_rate_buffer, getHeartRateCSV(hrm))
+        writeToBuffer(heart_rate_buffer, getHeartRateCSV(hrm));
     }
     //hrmCountPoll = 0;
 }
@@ -255,7 +255,7 @@ function onLongPress() {
     if (connected) {
         sendEmergency([Date.now(), 1]);
     } else {
-        writeToBuffer(emergency_buffer, getEmergencyCSV(1))
+        writeToBuffer(emergency_buffer, getEmergencyCSV(1));
     }
 }
 
@@ -317,7 +317,7 @@ function uiLog(text){
 
 function onConnectResend(){
     if(connected) {
-        console.log("onConnectResend")
+        //console.log("onConnectResend")
         try {
             checkResend(battery_buffer, sendBattery);
             checkResend(accel_buffer, sendAccel);
@@ -325,9 +325,9 @@ function onConnectResend(){
             checkResend(steps_buffer, sendSteps);
             checkResend(emergency_buffer, sendEmergency);
             checkResend(heart_rate_buffer, sendHeartRate);
-            console.log("onConnectResend success")
+            //console.log("onConnectResend success")
         } catch (e) {
-            console.log("error onConnectResend")
+            //console.log("error onConnectResend")
         }
     }
 }
@@ -337,16 +337,18 @@ function onAppStart() {
         connected = true;
         checkResendInterval = setInterval(onConnectResend, 10000);
         uiLog("connected");
+        batteryPercentage();
+        stepCount();
     });
     NRF.on('disconnect', function () {
         connected = false;
         try {
             clearInterval(checkResendInterval);
         } catch(e) {
-            console.log("couldnt cancel checkresendinterval");
+            //console.log("couldnt cancel checkresendinterval");
         }
         uiLog("disconnected");
-        NRF.eraseBonds(onBondErased);
+        //NRF.eraseBonds(onBondErased);
     });
 
     NRF.on('bond', function(status) {
@@ -461,5 +463,5 @@ function startApp(){
     initGraphics();
 }
 
-E.on('init', startApp);
+//E.on('init', startApp);
 startApp();
