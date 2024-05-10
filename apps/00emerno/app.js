@@ -32,17 +32,19 @@ let isAlerting = false;
 let checkResendInterval, alertCancelInterval, clearAlertCancelInterval, clearAlertNotCancelled;
 let last_alert;
 let hrmCountPoll = 0;
-var connected = false;
+let connected = false;
 
 let btnReleaseTimeout;
 
-var buffer_size = 5;
-var accel_buffer = [];
-var accel_cancelled_buffer =[];
-var heart_rate_buffer = [];
-var emergency_buffer = [];
-var battery_buffer = [];
-var steps_buffer = [];
+let buffer_size = 5;
+let accel_buffer = [];
+let accel_cancelled_buffer =[];
+let heart_rate_buffer = [];
+let emergency_buffer = [];
+let battery_buffer = [];
+let steps_buffer = [];
+
+let hrm_calc_buffer = [2]
 
 function addElement(array, data) {
     if (array.length == buffer_size)
@@ -84,14 +86,14 @@ function sendAccel(data){
     });
 }
 function sendAccelCancelled(data){
-    //NRF.updateServices({
-    //    "123f0001-40c3-4cf3-9797-9a8703e32795": {
-    //        "123f0007-40c3-4cf3-9797-9a8703e32795": {
-    //            value: new Float32Array(data).buffer,
-    //            notify: true
-    //        }
-    //    }
-    //});
+    NRF.updateServices({
+        "123f0001-40c3-4cf3-9797-9a8703e32795": {
+            "123f0007-40c3-4cf3-9797-9a8703e32795": {
+                value: new Float32Array(data).buffer,
+                notify: true
+            }
+        }
+    });
 }
 function sendBattery(data){
     NRF.updateServices({
@@ -234,19 +236,69 @@ function batteryPercentage(){
     }
 }
 
-function onHRM(hrm){
-    //hrmCountPoll = hrmCountPoll + 1;
-    //console.log("hrm: " + hrm.bpm)
-    //if(hrmCountPoll < 100) {
-    //    console.log("hrm count: " + hrmCountPoll);
-    //    return;
-    //}
+let hrm_count = 0;
+
+function calcAvgTime(firstTime, lastTime){
+    let diff = lastTime - firstTime;
+    return firstTime + Math.round(diff / 2);
+}
+
+function onStopHRM(){
+    Bangle.setHRMPower(0, "emerno");
+    hrm_count = 0;
+}
+
+function startHRM(){
+    //console.log("start hrm");
+    Bangle.setHRMPower(1, "emerno");
+}
+
+function onSendHRM(hrm){
+    //console.log("send hrm");
     if (connected){
-        sendHeartRate([Date.now(), hrm.bpm, hrm.confidence]);
+        sendHeartRate([Date.now(), hrm[1], hrm[2]]);
     } else {
         writeToBuffer(heart_rate_buffer, getHeartRateCSV(hrm));
     }
-    //hrmCountPoll = 0;
+}
+
+function onHRMValuesComplete(data){
+    //console.log("complete hrm");
+    onSendHRM(data);
+}
+
+function onHRM(hrm){
+    if(hrm_count < 25){
+        //ignoring
+    } else if(hrm_count < 50) {
+        //console.log("on hrm: " + hrm_count);
+        hrm_calc_buffer[1][0] = 0;
+        hrm_calc_buffer[1][1] += hrm.bpm;
+        hrm_calc_buffer[1][2] += hrm.confidence;
+
+        if(hrm_count == 49) {
+            let avg_bpm2 = Math.round(hrm_calc_buffer[1][1] / 25);
+            let avg_conf2 = Math.round(hrm_calc_buffer[1][2] / 25);
+            onHRMValuesComplete([Date.now(), avg_bpm2, avg_conf2]);
+            hrm_calc_buffer[1] = [0,0,0];
+        }
+
+    } else if(hrm_count < 75) {
+        //console.log("on hrm: " + hrm_count);
+        hrm_calc_buffer[1][0] = 0;
+        hrm_calc_buffer[1][1] += hrm.bpm;
+        hrm_calc_buffer[1][2] += hrm.confidence;
+
+        if(hrm_count == 74) {
+            let avg_bpm3 = Math.round(hrm_calc_buffer[1][1] / 25);
+            let avg_conf3 = Math.round(hrm_calc_buffer[1][2] / 25);
+            onHRMValuesComplete([Date.now(), avg_bpm3, avg_conf3]);
+            hrm_calc_buffer[1] = [0, 0, 0];
+        }
+    } else {
+        onStopHRM();
+    }
+    hrm_count++;
 }
 
 function onLongPress() {
@@ -339,6 +391,7 @@ function onAppStart() {
         uiLog("connected");
         batteryPercentage();
         stepCount();
+        startHRM();
     });
     NRF.on('disconnect', function () {
         connected = false;
@@ -391,20 +444,41 @@ function onAppStart() {
                 description: "notification for emergency button",
                 value : new Float32Array([0, 0]).buffer
             },
-            //"123f0007-40c3-4cf3-9797-9a8703e32795": {
-            //    notify: true,
-            //    description: "accel canceled data",
-            //    value : new Float32Array([0 ,0, 0]).buffer,
-            //},
+            "123f0007-40c3-4cf3-9797-9a8703e32795": {
+                notify: true,
+                description: "accel canceled data",
+                value : new Float32Array([0 ,0, 0]).buffer,
+            },
+            "123f0008-40c3-4cf3-9797-9a8703e32795": {
+                notify: true,
+                description: "unused",
+                value : new Float32Array([0 ,0, 0]).buffer,
+            },
+            "123f0009-40c3-4cf3-9797-9a8703e32795": {
+                notify: true,
+                description: "unused",
+                value : new Float32Array([0 ,0, 0]).buffer,
+            },
+            "123f000a-40c3-4cf3-9797-9a8703e32795": {
+                writeable: true,
+                readable: true,
+                description: "timesync",
+                value : "0000000000",
+                maxLen: 10,
+                onWrite : function(evt) {
+                    setTime(data.data);
+                },
+            },
         }
     });
-
+    hrm_calc_buffer[0] = [0,0,0];
+    hrm_calc_buffer[1] = [0,0,0];
     uiLog("Waiting..","Bluetooth Connection");
-    setInterval(stepCount, 300000);
-    setInterval(batteryPercentage, 300000);
+    setInterval(stepCount, 600000);
+    setInterval(batteryPercentage, 600000);
+    setInterval(startHRM, 600000);
     Bangle.on('accel', onAccel);
     Bangle.on('HRM', onHRM);
-    Bangle.setHRMPower(1, "emerno");
 }
 
 function onBtnReleased(e){
